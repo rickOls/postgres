@@ -1,0 +1,156 @@
+// Aula 2 - ConfiguraÃ§Ãµes iniciais
+
+EntÃ£o, primeiro, precisamos de 4 mÃ¡quinas ao todo, e ele terÃ¡ que ter essa configuraÃ§Ã£o:
+
+pgha1 com 192.168.0.30
+pgha2 com 192.168.0.31
+pgha3 com 192.168.0.32
+
+pgha-proxy com 192.168.0.33 
+
+Lembre-se de colocar todos os endereÃ§os e seus nomes de todos no arquivo /etc/hosts
+
+vim /etc/hosts
+
+192.168.0.30  pgha1
+192.168.0.31  pgha2
+192.168.0.32  pgha3
+
+192.168.0.33  pgha-proxy
+
+E fazer os testes de ping de todos para todos.
+
+Depois, o prÃ³ximo passo Ã© liberar a conexÃ£o remota do banco de dados:
+
+vim /etc/postgresql/*/main/postgresql.conf
+
+listen_addresses = '*' 
+
+E depois, veja a permissÃ£o de conexÃ£o em "pg_hba.conf":
+
+vim /etc/postgresql/*/main/pg_hba.conf
+
+host    all             all             192.168.0.0/24          md5
+
+E depois dÃª um restart no banco de dados:
+
+systemctl restart postgresql
+
+Agora, vamos instalar o HAProxy na mÃ¡quina "pgha-proxy":
+
+sudo apt-get install haproxy
+
+Vamos na mÃ¡quina "pgha1" e criar uma ROLE especÃ­fica:
+
+sudo su - postgres
+
+psql
+
+# CREATE ROLE haproxy_check;
+
+Agora, volte para a mÃ¡quina "pgha-proxy" e faÃ§a essas configuraÃ§Ãµes:
+
+vim /etc/haproxy/haproxy.cfg
+
+global
+	
+	maxconn 100	
+	log /dev/log	local0
+	log /dev/log	local1 notice
+	chroot /var/lib/haproxy
+	stats socket /run/haproxy/admin.sock mode 660 level admin
+	stats timeout 30s
+	user haproxy
+	group haproxy
+	daemon
+
+	# Default SSL material locations
+	ca-base /etc/ssl/certs
+	crt-base /etc/ssl/private
+
+	# Default ciphers to use on SSL-enabled listening sockets.
+	# For more information, see ciphers(1SSL). This list is from:
+	#  https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
+	ssl-default-bind-ciphers ECDH+AESGCM:DH+AESGCM:ECDH+AES256::RSA+AES:RSA+3DES:!aNULL:!MD5:!DSS
+	ssl-default-bind-options no-sslv3
+
+defaults
+	log	global
+	mode	tcp
+	retries 2
+	option  tcplog
+	option	dontlognull
+        timeout connect 4s
+        timeout client  30m
+        timeout server  30m
+        timeout check   5s
+
+	frontend ft_postgresql
+		bind *:5500
+		default_backend bk_db
+
+	backend bk_db
+		balance leastconn
+		option pgsql-check user haproxy_check
+		
+		server postgresql_pgha1 pgha1:5432 check
+		server postgresql_pgha2 pgha2:5432 check
+		server postgresql_pgha3 pgha3:5432 check
+
+	
+	errorfile 400 /etc/haproxy/errors/400.http
+	errorfile 403 /etc/haproxy/errors/403.http
+	errorfile 408 /etc/haproxy/errors/408.http
+	errorfile 500 /etc/haproxy/errors/500.http
+	errorfile 502 /etc/haproxy/errors/502.http
+	errorfile 503 /etc/haproxy/errors/503.http
+	errorfile 504 /etc/haproxy/errors/504.http
+
+
+Salve e dÃª restart no serviÃ§o:
+
+sudo systemctl restart haproxy
+
+Agora, volte para o servidor "pgha1" e vamos conectar ao "pgha-proxy" via remoto:
+
+psql -h pgha-proxy -U postgres -c "SELECT inet_server_addr()"
+
+Senha: %UmaÃ§enhafortE% (senha que eu usei na instalaÃ§Ã£o da versÃ£o 12 do postgresql!)
+
+E vamos ao servidor do "pgha-proxy" e testar em todos os nÃ³s:
+
+psql -h pgha-proxy -p 5500 -U postgres \
+-c "SELECT inet_server_addr()"
+
+grep ^processor /proc/cpuinfo
+
+grep MemTotal /proc/meminfo
+
+
+8*4 = 32MB por cliente
+
+2040 / 2 = 1020
+
+1020 / 32 = 31 
+
+
+Agora, vamos ver a CPU:
+
+Obtenha a contagem de CPU em nÃºcleos, incluindo a virtual, se tiver:
+
+3
+
+Duplique a contagem de nÃºcleos da CPU.
+
+3*2 = 6
+
+Adicione o nÃºmero de discos a serem usados.
+
+ex: 1
+
+Se o armazenamento for baseado em SSD, adicione 100.
+
+ex: + 100
+
+= 107 Ã© o nÃºmero de conexÃ§Ãµes ideal para nÃ£o ter latÃªncia em suas conexÃµes.
+

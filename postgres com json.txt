@@ -1,0 +1,42 @@
+== Postgres com Json ==
+
+CREATE TABLE familias_j (id serial PRIMARY KEY, profile json);
+
+INSERT INTO familias_j (profile) VALUES (
+'{"nome":"Gomez", "membros":[
+{"membro":{"relation":"pai", "nome":"Alex"}},
+{"membro":{"relation":"mae", "nome":"Sonia"}},
+{"membro":{"relation":"filho", "nome":"Brandon"}},
+{"membro":{"relation":"filha", "nome":"Azaleah"}}
+]}');
+
+SELECT json_extract_path_text(profile, 'nome') As familia, json_extract_path_text(json_array_elements(json_extract_path(profile,'membros')), 'membro','nome' ) As membro FROM familias_j;
+
+
+SELECT profile->>'nome' As familia, json_array_elements((profile->'membros')) #>> '{membro,nome}'::text[] As membro FROM familias_j;
+
+== SaÃ­da de JSON ==
+
+SELECT row_to_json(f) As x FROM (SELECT id, profile->>'nome' As nome FROM familias_j) As f;
+
+SELECT row_to_json(f) FROM familias_j As f;
+
+== jsonb ==
+
+CREATE TABLE familias_b (id serial PRIMARY KEY, profile jsonb);
+
+INSERT INTO familias_b (profile) VALUES (
+'{"nome":"Gomez", "membros":[
+{"membro":{"relation":"pai", "nome":"Alex"}},
+{"membro":{"relation":"mae", "nome":"Sonia"}},
+{"membro":{"relation":"filho", "nome":"Brandon"}},
+{"membro":{"relation":"filha", "nome":"Azaleah"}}
+]}');
+
+SELECT profile As b FROM familias_b WHERE id = 1;
+SELECT profile As j FROM familias_j WHERE id = 1;
+
+
+SELECT profile->>'nome' As family FROM familias_b WHERE profile @> '{"membros":[{"membro":{"nome":"Alex"} }]}';
+
+CREATE INDEX idx_familes_jb_profile_gin ON familias_b USING gin (profile);

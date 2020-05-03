@@ -1,0 +1,218 @@
+// configura rede no ubunto server
+
+cd /etc/netplan
+nano 50-.yaml
+
+
+
+foto anexo.
+
+// instala o postgres na maquina
+
+apt-get install postgresql postgresql-contrib
+update-rc.d postgresql enable
+service postgresql start
+
+//configura pasta para ser acessada por outras maquinas
+
+nano /etc/postgresql/10/main/postgresql.conf    //no final adicionar listen_addresses = '*'
+
+nano /etc/postgresql/10/main/pg_hba.conf colocar # nos anteriores  // no final adicionar host all all 0.0.0.0/0 md5
+
+service postgresql restart
+
+// acessar como usuario postgres
+
+sudo su - postgres
+
+// inicia a linha de comando do postgres
+
+psql
+
+select current_user; //mostra usuario padrão.
+
+
+select inet_server_port(); // mostra 
+
+\q ou
+exit // sai
+
+adduser ricardo // fora do postgres criar usuario da maquina no linux
+
+su - postgres 
+
+psql template1  //onde se cria usuarios
+
+create user ricardo with password '123456';
+
+create database nomedobanco;
+
+grant ALL PRIVILEGES on database nomedobanco to ricardo;  // da previlegios de edição para ricardo sobre o banco 
+
+su - ricardo // acessa o banco com o usuario
+
+psql -d nomedobanco -U ricardo
+
+instalar o pgadmin no windows.
+
+C:\Program Files (x86)\pgAdmin 4\v4\web    editar o config.py  // mudar SERVER_MODE = False e DEFAULT_SERVER = '0.0.0.0'
+
+instalar phppgadmin  // apt-get install phppgadmin
+
+nano/etc/apache2/conf-enabled/phppgadmin.conf // em Require local colocar # antes 
+
+inserir 
+order deny,allow
+deny from all
+allow from 192.168.1.0/24   //redde local
+
+nano /etc/phppgadmin/config.ini.php  // $conf['extra_login_security']= false;
+
+systenctl restart postgresql 
+systemctl restar apache2
+
+de uma maquina cliente acesssar o banco // geralmente ao baixar o pfagmin ou phppgadmin ele instalar
+
+conexão remota
+psql -h 192.168.11.35 -p 5432 -d nomedobanco -U ricardo -W 
+
+psql -c "SELECT current_time"    //mostra o time fora do sql é um recuros linux
+
+\password troca senha
+
+ou dentro do sql : ALTER USER usuario PASSWORD 'senha';
+
+\conninfo mostra o tipo de conta e porta que vc esta conectado.
+
+/etc/postgresql/9.5/main //diretorio de arquivos de config postgres
+
+SELECT name, context, unit, setting,boot_val,reset_val FROM pg_settings WHERE name IN ('listen_adresses','max_connections','shared_buffers','effective_cache_size',work_mem','maintenance_work_mem') ORDER BY context,name;
+
+select para consultar os dados informados do arquivoo pg-settings da pasta main
+
+SELECT name, setting FROM pg_settings WHERE category = 'File Locations';  //identifica arquivos de conf
+
+SELECT * FROM pg_stat_activity; // ver atividade em execução mostra tbm usuarios logados no banco
+
+SELECT pg_cancel_backend(4405);  //mata conexão selecionado o pid
+
+SELECT pg_terminate_backend(4405);
+
+ou
+
+SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE username = 'nomedouser';     // tbm remove usuario
+
+CREATE ROLE joao LOGIN PASSWORD '123456' CREATEDB VALID UNTIL 'infinity';  //cria usuario comum cria usuario que não expira
+
+CREATE ROLE tacia LOGIN PASSWORD '123456' SUPERUSER VALID UNTIL '2022-1-1 00:00';  //cria usuario super usuario que expira
+
+DROP ROLE tacia; //remove usuario
+
+CREATE ROLE grupo1 INHERIT;  //cria grupo qualquer usuario terá recursos do grupo (INHERIT)
+
+GRANT grupo1 TO joao; //adiciona o joao no grupo
+
+\list     lista todos os bancos
+
+CREATE DATABASE meubanco;  //cria banco
+
+DROP DATABASE meubanco;  //remove banco
+
+evitar apagar o template0
+
+CREATE DATABASE meudb2 TEMPLATE meu_template_db; //cria um banco baseado no template de outro
+
+UPDATE pg_database SET datistemplate = TRUE WHERE datname = 'meudb2';   // deixa o banco protegido de remoção.
+
+UPDATE pg_database SET datistemplate = FALSE WHERE datname = 'meudb2';   // desbloqueia para remover ou editar.
+
+\c nomedobanco;    //conecta nele
+
+CREATE SCHEMA minha_extensao;  // cria schema no banco onde se cria as tabelas drop tbm remove.
+
+no root do linux criar usuario do sistema.
+
+adduser spadogs e cuidadosdocao
+
+acessar o userpostgres 
+
+\c template1;   //acessar banco template1
+
+create role spadogs with passowd '123456';   //cria os usuarios no postgres
+
+alter role spadogs with login; //habilita para poder fazer login com eles no banco
+
+sair e acessa como postgre
+
+crete database spadogs WITH owner = spadogs;    //cria um banco com owner(propriedade) spadogs
+
+\c spadog 
+
+create schema spadogs;   // acessa o banco e cria schema para o banco
+
+alter schema spadogs owner to spadogs;   // coloca o spadogs como owner do schema
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
